@@ -40,7 +40,8 @@ const distributions = {
     variance: (lambda = 3) => lambda,
   },
   rayleigh: {
-    pdf: (x, sigma = 1) => (x >= 0 ? (x / sigma ** 2) * Math.exp(-(x ** 2) / (2 * sigma ** 2)) : 0),
+    pdf: (x, sigma = 1) =>
+      x >= 0 ? (x / sigma ** 2) * Math.exp(-(x ** 2) / (2 * sigma ** 2)) : 0,
     cdfExpression: "1 - exp(-x^2 / (2 * σ^2)) for x ≥ 0",
     pdfExpression: "(x / σ^2) * exp(-x^2 / (2 * σ^2)) for x ≥ 0",
     mean: (sigma = 1) => sigma * Math.sqrt(Math.PI / 2),
@@ -56,7 +57,9 @@ const distributions = {
   },
   binomial: {
     pdf: (x, n = 10, p = 0.5) =>
-      math.combinations(n, x) * Math.pow(p, x) * Math.pow(1 - p, n - x),
+      Number.isInteger(x) && x >= 0 && x <= n
+        ? math.combinations(n, x) * Math.pow(p, x) * Math.pow(1 - p, n - x)
+        : 0,
     cdfExpression: "Σ (nCx * p^x * (1-p)^(n-x)) from x=0 to x",
     pdfExpression: "nCx * p^x * (1-p)^(n-x)",
     mean: (n = 10, p = 0.5) => n * p,
@@ -87,6 +90,7 @@ const computeStatistics = (distributionType, params) => {
     stdDev,
   };
 };
+
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
   next();
@@ -102,8 +106,10 @@ app.get("/distribution/:type", (req, res) => {
   const params = Object.keys(req.query).map((key) => parseFloat(req.query[key]));
 
   let xValues =
-    type === "poisson" || type === "binomial"
+    type === "poisson"
       ? math.range(0, 20, 1).toArray()
+      : type === "binomial"
+      ? math.range(0, params[0] + 1, 1).toArray() // Ensure binomial uses 0 to n
       : math.range(-5, 5, 0.1).toArray();
 
   let pdfValues = xValues.map((x) => distributions[type].pdf(x, ...params));
@@ -124,9 +130,9 @@ app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
 
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
+
 
